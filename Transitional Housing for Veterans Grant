@@ -1,0 +1,285 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Transitional Housing for Veterans — Grant Copilot API",
+    "version": "1.0.0",
+    "description": "API for an AI agent that searches veteran‑focused housing grants, retrieves NOFOs, evaluates eligibility, generates structured application drafts, and stores them for human review."
+  },
+  "servers": [
+    {
+      "url": "https://api.veteran-housing-copilot.org",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/grants/search": {
+      "post": {
+        "summary": "Search veteran housing grants",
+        "operationId": "search_grants",
+        "description": "Search for federal, state, and foundation grants related to transitional housing, rapid rehousing, supportive services, and veteran homelessness.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantSearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "List of matching grants",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrantSearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/grants/{grantId}/nofo": {
+      "get": {
+        "summary": "Fetch NOFO details",
+        "operationId": "fetch_nofo",
+        "description": "Retrieve NOFO details for a specific veteran‑housing‑related grant.",
+        "parameters": [
+          {
+            "name": "grantId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "NOFO details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/NOFO" }
+              }
+            }
+          },
+          "404": { "description": "Grant or NOFO not found" }
+        }
+      }
+    },
+    "/applications": {
+      "post": {
+        "summary": "Save application draft",
+        "operationId": "save_application_draft",
+        "description": "Save a structured application draft for a transitional housing grant.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationDraftSaveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Draft saved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationDraftSaveResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/generate-grant-draft": {
+      "post": {
+        "summary": "End-to-end transitional housing grant draft generation",
+        "operationId": "generate_grant_draft",
+        "description": "Searches for veteran housing grants, selects the best match, retrieves NOFO details, generates a structured draft, and saves it.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateGrantDraftRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Generated and saved application draft",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateGrantDraftResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GrantSearchRequest": {
+        "type": "object",
+        "properties": {
+          "keywords": {
+            "type": "string",
+            "description": "Search terms such as 'veteran transitional housing', 'GPD', 'SSVF', 'supportive services', 'homeless veterans'."
+          },
+          "fundingType": {
+            "type": "string",
+            "enum": ["capital", "operations", "services", "mixed"],
+            "description": "Type of funding sought."
+          },
+          "minBeds": {
+            "type": "integer",
+            "description": "Minimum number of beds required by the grant."
+          },
+          "state": {
+            "type": "string",
+            "description": "State filter for state-level veteran housing grants."
+          },
+          "agency": {
+            "type": "string",
+            "description": "Federal or state agency (e.g., VA, HUD, MDHHS, MVAA)."
+          }
+        },
+        "required": ["keywords"]
+      },
+      "GrantSearchResponse": {
+        "type": "object",
+        "properties": {
+          "grants": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Grant" }
+          }
+        }
+      },
+      "Grant": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "agency": { "type": "string" },
+          "deadline": { "type": "string", "format": "date-time" },
+          "fundingType": { "type": "string" },
+          "minBedsRequired": { "type": "integer" },
+          "maxAward": { "type": "number" },
+          "eligibilitySummary": { "type": "string" },
+          "url": { "type": "string" }
+        },
+        "required": ["id", "title"]
+      },
+      "NOFO": {
+        "type": "object",
+        "properties": {
+          "grantId": { "type": "string" },
+          "rawText": { "type": "string" },
+          "sections": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "eligibility": { "type": "string" },
+          "housingRequirements": {
+            "type": "object",
+            "properties": {
+              "minBeds": { "type": "integer" },
+              "facilityStandards": { "type": "string" },
+              "serviceModel": { "type": "string" }
+            }
+          },
+          "requiredAttachments": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["grantId", "rawText"]
+      },
+      "ApplicationTemplate": {
+        "type": "object",
+        "properties": {
+          "projectSummary": { "type": "string" },
+          "veteranPopulationServed": { "type": "string" },
+          "housingModel": { "type": "string" },
+          "facilityDescription": { "type": "string" },
+          "bedCapacity": { "type": "integer" },
+          "caseManagementPlan": { "type": "string" },
+          "supportiveServices": { "type": "string" },
+          "communityPartnerships": { "type": "string" },
+          "budgetNarrative": { "type": "string" },
+          "outcomes": { "type": "string" },
+          "evaluationPlan": { "type": "string" },
+          "sustainability": { "type": "string" },
+          "attachmentsRequired": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "notes": { "type": "string" }
+        },
+        "required": [
+          "projectSummary",
+          "veteranPopulationServed",
+          "housingModel",
+          "facilityDescription",
+          "bedCapacity",
+          "caseManagementPlan",
+          "supportiveServices",
+          "budgetNarrative",
+          "outcomes",
+          "evaluationPlan",
+          "sustainability",
+          "attachmentsRequired"
+        ]
+      },
+      "ApplicationDraftSaveRequest": {
+        "type": "object",
+        "properties": {
+          "grantId": { "type": "string" },
+          "draft": { "$ref": "#/components/schemas/ApplicationTemplate" },
+          "createdBy": { "type": "string" }
+        },
+        "required": ["grantId", "draft"]
+      },
+      "ApplicationDraftSaveResponse": {
+        "type": "object",
+        "properties": {
+          "draftId": { "type": "string" },
+          "grantId": { "type": "string" },
+          "status": { "type": "string", "enum": ["saved", "pending_review"] },
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["draftId", "grantId", "status", "createdAt"]
+      },
+      "GenerateGrantDraftRequest": {
+        "type": "object",
+        "properties": {
+          "keywords": { "type": "string" },
+          "state": { "type": "string" },
+          "minBeds": { "type": "integer" },
+          "orgProfileId": { "type": "string" },
+          "maxResults": { "type": "integer", "default": 5 }
+        },
+        "required": ["keywords"]
+      },
+      "GenerateGrantDraftResponse": {
+        "type": "object",
+        "properties": {
+          "grant": { "$ref": "#/components/schemas/Grant" },
+          "draftId": { "type": "string" },
+          "draft": { "$ref": "#/components/schemas/ApplicationTemplate" },
+          "status": { "type": "string", "enum": ["generated", "saved"] }
+        },
+        "required": ["grant", "draftId", "draft", "status"]
+      }
+    }
+  }
+}
