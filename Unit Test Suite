@@ -1,0 +1,122 @@
+import pytest
+from scorer import VeteranHousingGrantScorer
+
+@pytest.fixture
+def scorer():
+    return VeteranHousingGrantScorer()
+
+@pytest.fixture
+def full_score_input():
+    return {
+        "populationEligibility": True,
+        "housingModelAlignment": True,
+        "facilityRequirementsMet": True,
+        "caseManagementAlignment": "strong",
+        "supportiveServicesAlignment": "strong",
+        "partnershipStrength": "strong",
+        "staffingCapacity": "high",
+        "facilityReadiness": "ready",
+        "pastPerformance": "strong",
+        "awardAdequacy": "adequate",
+        "matchFeasibility": "feasible",
+        "missionAlignment": "strong",
+        "sustainabilityPotential": "high",
+        "competitiveLandscape": "favorable"
+    }
+
+def test_full_score(scorer, full_score_input):
+    """A perfect grant should score 100 and be High Priority."""
+    result = scorer.score(full_score_input)
+    assert result["totalScore"] == 100
+    assert result["rating"] == "High Priority"
+
+def test_partial_eligibility(scorer, full_score_input):
+    """Missing one eligibility requirement should reduce the score."""
+    data = full_score_input.copy()
+    data["facilityRequirementsMet"] = False
+    result = scorer.score(data)
+    assert result["breakdown"]["eligibility"] == 20  # 10 + 10 + 0
+    assert result["totalScore"] == 95
+
+def test_program_fit_variations(scorer, full_score_input):
+    """Program fit should adjust based on alignment levels."""
+    data = full_score_input.copy()
+    data["caseManagementAlignment"] = "moderate"
+    data["supportiveServicesAlignment"] = "weak"
+    data["partnershipStrength"] = "none"
+
+    result = scorer.score(data)
+    expected_program_fit = 6 + 3 + 0  # moderate + weak + none
+    assert result["breakdown"]["programFit"] == expected_program_fit
+
+def test_organizational_capacity_low(scorer, full_score_input):
+    """Low capacity should significantly reduce the score."""
+    data = full_score_input.copy()
+    data["staffingCapacity"] = "low"
+    data["facilityReadiness"] = "not_ready"
+    data["pastPerformance"] = "none"
+
+    result = scorer.score(data)
+    expected_capacity = 2 + 0 + 0
+    assert result["breakdown"]["organizationalCapacity"] == expected_capacity
+
+def test_financial_fit_challenging(scorer, full_score_input):
+    """Challenging match feasibility should reduce financial fit."""
+    data = full_score_input.copy()
+    data["matchFeasibility"] = "challenging"
+
+    result = scorer.score(data)
+    expected_financial = 10 + 2  # adequate + challenging
+    assert result["breakdown"]["financialFit"] == expected_financial
+
+def test_strategic_value_low(scorer, full_score_input):
+    """Weak strategic value should lower the category score."""
+    data = full_score_input.copy()
+    data["missionAlignment"] = "weak"
+    data["sustainabilityPotential"] = "low"
+    data["competitiveLandscape"] = "unfavorable"
+
+    result = scorer.score(data)
+    expected_strategic = 1 + 1 + 1
+    assert result["breakdown"]["strategicValue"] == expected_strategic
+
+def test_rating_thresholds(scorer, full_score_input):
+    """Verify rating boundaries."""
+    # High Priority
+    result = scorer.score(full_score_input)
+    assert result["rating"] == "High Priority"
+
+    # Viable
+    data = full_score_input.copy()
+    data["populationEligibility"] = False  # -10 points
+    result = scorer.score(data)
+    assert 70 <= result["totalScore"] < 85
+    assert result["rating"] == "Viable"
+
+    # Low Fit
+    data = full_score_input.copy()
+    data["populationEligibility"] = False
+    data["housingModelAlignment"] = False
+    data["caseManagementAlignment"] = "weak"
+    result = scorer.score(data)
+    assert 50 <= result["totalScore"] < 70
+    assert result["rating"] == "Low Fit"
+
+    # Not Recommended
+    data = {k: "none" for k in full_score_input.keys()}
+    data["populationEligibility"] = False
+    result = scorer.score(data)
+    assert result["totalScore"] < 50
+    assert result["rating"] == "Not Recommended"
+
+def test_missing_fields_default_to_zero(scorer):
+    """Missing or invalid fields should score zero but not crash."""
+    data = {
+        "populationEligibility": True,
+        "housingModelAlignment": True
+        # everything else missing
+    }
+    result = scorer.score(data)
+    assert result["breakdown"]["eligibility"] == 20  # 10 + 10 + 0
+    assert result["totalScore"] == 20
+    assert result["rating"] == "Not Recommended"
