@@ -1,0 +1,275 @@
+from dataclasses import dataclass
+from typing import List, Dict, Any, Optional
+import re
+import textwrap
+
+
+# ---------- 1. Scoring Engine (from earlier) ----------
+
+class VeteranHousingGrantScorer:
+    def __init__(self):
+        self.weights = {
+            "eligibility": {
+                "populationEligibility": {True: 10, False: 0},
+                "housingModelAlignment": {True: 10, False: 0},
+                "facilityRequirementsMet": {True: 5, False: 0}
+            },
+            "programFit": {
+                "caseManagementAlignment": {
+                    "strong": 10, "moderate": 6, "weak": 3, "none": 0
+                },
+                "supportiveServicesAlignment": {
+                    "strong": 10, "moderate": 6, "weak": 3, "none": 0
+                },
+                "partnershipStrength": {
+                    "strong": 5, "moderate": 3, "weak": 1, "none": 0
+                }
+            },
+            "organizationalCapacity": {
+                "staffingCapacity": {
+                    "high": 10, "medium": 6, "low": 2
+                },
+                "facilityReadiness": {
+                    "ready": 5, "partial": 3, "not_ready": 0
+                },
+                "pastPerformance": {
+                    "strong": 5, "moderate": 3, "weak": 1, "none": 0
+                }
+            },
+            "financialFit": {
+                "awardAdequacy": {
+                    "adequate": 10, "tight": 6, "insufficient": 0
+                },
+                "matchFeasibility": {
+                    "feasible": 5, "challenging": 2, "not_feasible": 0
+                }
+            },
+            "strategicValue": {
+                "missionAlignment": {
+                    "strong": 5, "moderate": 3, "weak": 1
+                },
+                "sustainabilityPotential": {
+                    "high": 5, "medium": 3, "low": 1
+                },
+                "competitiveLandscape": {
+                    "favorable": 5, "neutral": 3, "unfavorable": 1
+                }
+            }
+        }
+
+        self.thresholds = [
+            (85, "High Priority"),
+            (70, "Viable"),
+            (50, "Low Fit"),
+            (0, "Not Recommended")
+        ]
+
+    def score(self, grant: Dict[str, Any]) -> Dict[str, Any]:
+        breakdown = {}
+        for category, rules in self.weights.items():
+            category_score = 0
+            for field, scoring_table in rules.items():
+                value = grant.get(field)
+                if value in scoring_table:
+                    category_score += scoring_table[value]
+            breakdown[category] = category_score
+
+        total_score = sum(breakdown.values())
+        rating = next(label for threshold, label in self.thresholds if total_score >= threshold)
+
+        return {
+            "totalScore": total_score,
+            "breakdown": breakdown,
+            "rating": rating
+        }
+
+
+# ---------- 2. Data Structures ----------
+
+@dataclass
+class NOFOChunk:
+    chunk_id: str
+    section: str
+    title: str
+    text: str
+
+
+# ---------- 3. Preprocessing & Chunking ----------
+
+class NOFOPreprocessor:
+    def preprocess(self, raw_text: str) -> str:
+        text = raw_text.replace("\r", "\n")
+        text = re.sub(r"\n{2,}", "\n\n", text)
+        return text.strip()
+
+
+class NOFOChunker:
+    SECTION_PATTERN = re.compile(
+        r"(Section\s+[IVXLC]+\.?\s+.+)", re.IGNORECASE
+    )
+
+    def chunk(self, text: str) -> List[NOFOChunk]:
+        sections = self.SECTION_PATTERN.split(text)
+        chunks: List[NOFOChunk] = []
+
+        if not sections:
+            return [NOFOChunk("GEN-1", "GENERAL", "Full NOFO", text)]
+
+        # sections looks like: ["", "Section I ...", "text...", "Section II ...", "text...", ...]
+        current_section = "GENERAL"
+        for i in range(1, len(sections), 2):
+            header = sections[i].strip()
+            body = sections[i + 1].strip() if i + 1 < len(sections) else ""
+            section_id = header.split()[1].rstrip(".")
+            chunk_id = f"{section_id}-1"
+            chunks.append(
+                NOFOChunk(
+                    chunk_id=chunk_id,
+                    section=section_id,
+                    title=header,
+                    text=body
+                )
+            )
+        return chunks
+
+
+# ---------- 4. Chunk-Level Extraction (LLM Stub) ----------
+
+class NOFOChunkExtractor:
+    """
+    In production, replace `extract_from_chunk` with a real LLM call
+    using the extraction prompt and schema.
+    """
+
+    def extract_from_chunk(self, chunk: NOFOChunk) -> Dict[str, Any]:
+        # MOCK IMPLEMENTATION:
+        # You will replace this with an LLM call that returns JSON.
+        # Here we just return "none"/False defaults.
+        return {
+            "eligibility": [],
+            "housingRequirements": {},
+            "serviceModel": {},
+            "requiredAttachments": [],
+            "scoringCriteria": {},
+            "budgetRequirements": {}
+        }
+
+
+# ---------- 5. Global Synthesis ----------
+
+class NOFOSynthesizer:
+    def synthesize(self, chunk_outputs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        unified = {
+            "eligibility": [],
+            "housingRequirements": {},
+            "serviceModel": {},
+            "requiredAttachments": [],
+            "scoringCriteria": {},
+            "budgetRequirements": {}
+        }
+
+        for out in chunk_outputs:
+            unified["eligibility"].extend(out.get("eligibility", []))
+            unified["requiredAttachments"].extend(out.get("requiredAttachments", []))
+
+            # Simple merge; in production you’d handle conflicts more carefully
+            unified["housingRequirements"].update(out.get("housingRequirements", {}))
+            unified["serviceModel"].update(out.get("serviceModel", {}))
+            unified["scoringCriteria"].update(out.get("scoringCriteria", {}))
+            unified["budgetRequirements"].update(out.get("budgetRequirements", {}))
+
+        # Deduplicate attachments
+        unified["requiredAttachments"] = sorted(set(unified["requiredAttachments"]))
+
+        return unified
+
+
+# ---------- 6. Scoring Input Normalization ----------
+
+class ScoringInputNormalizer:
+    def normalize(self, unified_nofo: Dict[str, Any]) -> Dict[str, Any]:
+        # MOCK heuristic mapping; in production, use LLM or rules to map fields.
+        # Here we just return a neutral/low‑risk default structure.
+        return {
+            "populationEligibility": True,
+            "housingModelAlignment": True,
+            "facilityRequirementsMet": True,
+            "caseManagementAlignment": "moderate",
+            "supportiveServicesAlignment": "moderate",
+            "partnershipStrength": "moderate",
+            "staffingCapacity": "medium",
+            "facilityReadiness": "partial",
+            "pastPerformance": "moderate",
+            "awardAdequacy": "tight",
+            "matchFeasibility": "challenging",
+            "missionAlignment": "strong",
+            "sustainabilityPotential": "medium",
+            "competitiveLandscape": "neutral"
+        }
+
+
+# ---------- 7. Pipeline Orchestrator ----------
+
+class NOFOScoringPipeline:
+    def __init__(
+        self,
+        preprocessor: Optional[NOFOPreprocessor] = None,
+        chunker: Optional[NOFOChunker] = None,
+        extractor: Optional[NOFOChunkExtractor] = None,
+        synthesizer: Optional[NOFOSynthesizer] = None,
+        normalizer: Optional[ScoringInputNormalizer] = None,
+        scorer: Optional[VeteranHousingGrantScorer] = None
+    ):
+        self.preprocessor = preprocessor or NOFOPreprocessor()
+        self.chunker = chunker or NOFOChunker()
+        self.extractor = extractor or NOFOChunkExtractor()
+        self.synthesizer = synthesizer or NOFOSynthesizer()
+        self.normalizer = normalizer or ScoringInputNormalizer()
+        self.scorer = scorer or VeteranHousingGrantScorer()
+
+    def run(self, raw_nofo_text: str) -> Dict[str, Any]:
+        # 1. Preprocess
+        clean_text = self.preprocessor.preprocess(raw_nofo_text)
+
+        # 2. Chunk
+        chunks = self.chunker.chunk(clean_text)
+
+        # 3. Chunk‑level extraction
+        chunk_outputs = [self.extractor.extract_from_chunk(c) for c in chunks]
+
+        # 4. Global synthesis
+        unified_nofo = self.synthesizer.synthesize(chunk_outputs)
+
+        # 5. Normalize to scoring input
+        scoring_input = self.normalizer.normalize(unified_nofo)
+
+        # 6. Score
+        score_result = self.scorer.score(scoring_input)
+
+        return {
+            "chunks": [c.__dict__ for c in chunks],
+            "unified_nofo": unified_nofo,
+            "scoring_input": scoring_input,
+            "score_result": score_result
+        }
+
+
+# ---------- 8. Example Usage ----------
+
+if __name__ == "__main__":
+    example_nofo = textwrap.dedent("""
+        Section I. Funding Opportunity Description
+        This program supports transitional housing for homeless veterans...
+
+        Section III. Eligibility Information
+        Eligible applicants are nonprofit organizations serving veterans...
+
+        Section V. Application Review Information
+        Applications will be scored based on program design, capacity, and outcomes...
+    """)
+
+    pipeline = NOFOScoringPipeline()
+    result = pipeline.run(example_nofo)
+
+    from pprint import pprint
+    pprint(result["score_result"])
