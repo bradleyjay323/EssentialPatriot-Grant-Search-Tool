@@ -1,0 +1,123 @@
+{
+  "function": "scoreVeteranHousingGrant",
+  "description": "Scores a grant opportunity for transitional housing for veterans using a 100‑point weighted rubric.",
+  "inputs": {
+    "grant": {
+      "type": "object",
+      "description": "Grant metadata and NOFO‑extracted fields.",
+      "properties": {
+        "populationEligibility": { "type": "boolean" },
+        "housingModelAlignment": { "type": "boolean" },
+        "facilityRequirementsMet": { "type": "boolean" },
+        "caseManagementAlignment": { "type": "string", "enum": ["strong", "moderate", "weak", "none"] },
+        "supportiveServicesAlignment": { "type": "string", "enum": ["strong", "moderate", "weak", "none"] },
+        "partnershipStrength": { "type": "string", "enum": ["strong", "moderate", "weak", "none"] },
+        "staffingCapacity": { "type": "string", "enum": ["high", "medium", "low"] },
+        "facilityReadiness": { "type": "string", "enum": ["ready", "partial", "not_ready"] },
+        "pastPerformance": { "type": "string", "enum": ["strong", "moderate", "weak", "none"] },
+        "awardAdequacy": { "type": "string", "enum": ["adequate", "tight", "insufficient"] },
+        "matchFeasibility": { "type": "string", "enum": ["feasible", "challenging", "not_feasible"] },
+        "missionAlignment": { "type": "string", "enum": ["strong", "moderate", "weak"] },
+        "sustainabilityPotential": { "type": "string", "enum": ["high", "medium", "low"] },
+        "competitiveLandscape": { "type": "string", "enum": ["favorable", "neutral", "unfavorable"] }
+      }
+    }
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "totalScore": { "type": "number" },
+      "breakdown": {
+        "type": "object",
+        "properties": {
+          "eligibility": { "type": "number" },
+          "programFit": { "type": "number" },
+          "organizationalCapacity": { "type": "number" },
+          "financialFit": { "type": "number" },
+          "strategicValue": { "type": "number" }
+        }
+      },
+      "rating": { "type": "string" }
+    }
+  },
+  "logic": {
+    "eligibility": {
+      "populationEligibility": { "true": 10, "false": 0 },
+      "housingModelAlignment": { "true": 10, "false": 0 },
+      "facilityRequirementsMet": { "true": 5, "false": 0 }
+    },
+    "programFit": {
+      "caseManagementAlignment": {
+        "strong": 10,
+        "moderate": 6,
+        "weak": 3,
+        "none": 0
+      },
+      "supportiveServicesAlignment": {
+        "strong": 10,
+        "moderate": 6,
+        "weak": 3,
+        "none": 0
+      },
+      "partnershipStrength": {
+        "strong": 5,
+        "moderate": 3,
+        "weak": 1,
+        "none": 0
+      }
+    },
+    "organizationalCapacity": {
+      "staffingCapacity": {
+        "high": 10,
+        "medium": 6,
+        "low": 2
+      },
+      "facilityReadiness": {
+        "ready": 5,
+        "partial": 3,
+        "not_ready": 0
+      },
+      "pastPerformance": {
+        "strong": 5,
+        "moderate": 3,
+        "weak": 1,
+        "none": 0
+      }
+    },
+    "financialFit": {
+      "awardAdequacy": {
+        "adequate": 10,
+        "tight": 6,
+        "insufficient": 0
+      },
+      "matchFeasibility": {
+        "feasible": 5,
+        "challenging": 2,
+        "not_feasible": 0
+      }
+    },
+    "strategicValue": {
+      "missionAlignment": {
+        "strong": 5,
+        "moderate": 3,
+        "weak": 1
+      },
+      "sustainabilityPotential": {
+        "high": 5,
+        "medium": 3,
+        "low": 1
+      },
+      "competitiveLandscape": {
+        "favorable": 5,
+        "neutral": 3,
+        "unfavorable": 1
+      }
+    },
+    "ratingThresholds": {
+      "highPriority": { "min": 85, "label": "High Priority" },
+      "viable": { "min": 70, "label": "Viable" },
+      "lowFit": { "min": 50, "label": "Low Fit" },
+      "notRecommended": { "min": 0, "label": "Not Recommended" }
+    }
+  }
+}
