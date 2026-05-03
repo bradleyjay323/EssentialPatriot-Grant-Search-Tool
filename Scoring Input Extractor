@@ -1,0 +1,20 @@
+{
+  "populationEligibility": "boolean",
+  "housingModelAlignment": "boolean",
+  "facilityRequirementsMet": "boolean",
+
+  "caseManagementAlignment": "strong | moderate | weak | none",
+  "supportiveServicesAlignment": "strong | moderate | weak | none",
+  "partnershipStrength": "strong | moderate | weak | none",
+
+  "staffingCapacity": "high | medium | low",
+  "facilityReadiness": "ready | partial | not_ready",
+  "pastPerformance": "strong | moderate | weak | none",
+
+  "awardAdequacy": "adequate | tight | insufficient",
+  "matchFeasibility": "feasible | challenging | not_feasible",
+
+  "missionAlignment": "strong | moderate | weak",
+  "sustainabilityPotential": "high | medium | low",
+  "competitiveLandscape": "favorable | neutral | unfavorable"
+}
