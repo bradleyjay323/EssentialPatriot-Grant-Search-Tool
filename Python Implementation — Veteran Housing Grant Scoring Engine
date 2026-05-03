@@ -1,0 +1,120 @@
+from typing import Dict, Any
+
+class VeteranHousingGrantScorer:
+    """
+    Scores a grant opportunity for transitional housing for veterans
+    using a 100‑point weighted rubric.
+    """
+
+    def __init__(self):
+        # Weighted scoring tables
+        self.weights = {
+            "eligibility": {
+                "populationEligibility": {True: 10, False: 0},
+                "housingModelAlignment": {True: 10, False: 0},
+                "facilityRequirementsMet": {True: 5, False: 0}
+            },
+            "programFit": {
+                "caseManagementAlignment": {
+                    "strong": 10, "moderate": 6, "weak": 3, "none": 0
+                },
+                "supportiveServicesAlignment": {
+                    "strong": 10, "moderate": 6, "weak": 3, "none": 0
+                },
+                "partnershipStrength": {
+                    "strong": 5, "moderate": 3, "weak": 1, "none": 0
+                }
+            },
+            "organizationalCapacity": {
+                "staffingCapacity": {
+                    "high": 10, "medium": 6, "low": 2
+                },
+                "facilityReadiness": {
+                    "ready": 5, "partial": 3, "not_ready": 0
+                },
+                "pastPerformance": {
+                    "strong": 5, "moderate": 3, "weak": 1, "none": 0
+                }
+            },
+            "financialFit": {
+                "awardAdequacy": {
+                    "adequate": 10, "tight": 6, "insufficient": 0
+                },
+                "matchFeasibility": {
+                    "feasible": 5, "challenging": 2, "not_feasible": 0
+                }
+            },
+            "strategicValue": {
+                "missionAlignment": {
+                    "strong": 5, "moderate": 3, "weak": 1
+                },
+                "sustainabilityPotential": {
+                    "high": 5, "medium": 3, "low": 1
+                },
+                "competitiveLandscape": {
+                    "favorable": 5, "neutral": 3, "unfavorable": 1
+                }
+            }
+        }
+
+        # Rating thresholds
+        self.thresholds = [
+            (85, "High Priority"),
+            (70, "Viable"),
+            (50, "Low Fit"),
+            (0, "Not Recommended")
+        ]
+
+    def score(self, grant: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Compute the total score and rating for a grant.
+        """
+        breakdown = {}
+
+        # Compute category scores
+        for category, rules in self.weights.items():
+            category_score = 0
+            for field, scoring_table in rules.items():
+                value = grant.get(field)
+                if value in scoring_table:
+                    category_score += scoring_table[value]
+                else:
+                    # Missing or invalid values score zero
+                    category_score += 0
+            breakdown[category] = category_score
+
+        # Total score
+        total_score = sum(breakdown.values())
+
+        # Determine rating
+        rating = next(label for threshold, label in self.thresholds if total_score >= threshold)
+
+        return {
+            "totalScore": total_score,
+            "breakdown": breakdown,
+            "rating": rating
+        }
+
+
+# Example usage:
+if __name__ == "__main__":
+    example_grant = {
+        "populationEligibility": True,
+        "housingModelAlignment": True,
+        "facilityRequirementsMet": True,
+        "caseManagementAlignment": "strong",
+        "supportiveServicesAlignment": "moderate",
+        "partnershipStrength": "strong",
+        "staffingCapacity": "high",
+        "facilityReadiness": "ready",
+        "pastPerformance": "strong",
+        "awardAdequacy": "adequate",
+        "matchFeasibility": "feasible",
+        "missionAlignment": "strong",
+        "sustainabilityPotential": "high",
+        "competitiveLandscape": "favorable"
+    }
+
+    scorer = VeteranHousingGrantScorer()
+    result = scorer.score(example_grant)
+    print(result)
